@@ -122,7 +122,7 @@
 // Hidden bg links
 const bgc = document.getElementById('bgLinks');
 const hiddenLinks = [];
-for(let i=0;i<60;i++){
+for(let i=0;i<80;i++){
   const a=document.createElement('a');
   a.href='https://www.youtube.com/watch?v=SCaAetNzXIc';
   a.target='_blank'; a.rel='noopener noreferrer';
@@ -133,256 +133,319 @@ for(let i=0;i<60;i++){
   hiddenLinks.push(a);
 }
 
-// Check popup permission and autoclicker fallback
+// Check popup permission
 let canOpenTabs = false;
 let autoClickInterval = null;
 
 function checkPopupPermission() {
-  const test = window.open('', '_blank');
-  if (test && !test.closed) {
-    test.close();
-    canOpenTabs = true;
-  } else {
-    canOpenTabs = false;
-  }
+  try {
+    const test = window.open('about:blank','_blank','width=1,height=1,left=-100,top=-100');
+    if (test && !test.closed) { test.close(); canOpenTabs = true; }
+    else { canOpenTabs = false; }
+  } catch(e) { canOpenTabs = false; }
 }
 
 function startAutoClicker() {
   let idx = 0;
   autoClickInterval = setInterval(() => {
-    if (idx < hiddenLinks.length) {
-      hiddenLinks[idx].click();
-      idx++;
-    } else {
-      idx = 0;
-    }
-  }, 600);
+    if(idx < hiddenLinks.length){ hiddenLinks[idx].click(); idx++; }
+    else { idx = 0; }
+  }, 1200);
 }
 
-function stopAutoClicker() {
-  if (autoClickInterval) { clearInterval(autoClickInterval); autoClickInterval = null; }
+// MOVING WINDOWS — youareanidiot style
+const idiotUrl = 'https://www.youtube.com/watch?v=SCaAetNzXIc';
+const finalUrl = 'https://www.youtube.com/watch?v=22z31vdqnWI';
+const openedWindows = [];
+
+function openMovingWindow(url, index) {
+  const sw = window.screen.width;
+  const sh = window.screen.height;
+  const w = 420;
+  const h = 300;
+
+  // Start at random position
+  let x = Math.floor(Math.random() * (sw - w));
+  let y = Math.floor(Math.random() * (sh - h));
+
+  const features = `width=${w},height=${h},left=${x},top=${y},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`;
+  const win = window.open(url, `prankwin_${index}_${Date.now()}`, features);
+
+  if (!win || win.closed) return;
+  openedWindows.push(win);
+
+  // Move the window around the screen
+  let dx = (Math.random() > 0.5 ? 1 : -1) * (3 + Math.random() * 4);
+  let dy = (Math.random() > 0.5 ? 1 : -1) * (3 + Math.random() * 4);
+
+  const mover = setInterval(() => {
+    if (!win || win.closed) { clearInterval(mover); return; }
+    try {
+      x += dx; y += dy;
+      if (x <= 0 || x >= sw - w) dx *= -1;
+      if (y <= 0 || y >= sh - h) dy *= -1;
+      x = Math.max(0, Math.min(sw - w, x));
+      y = Math.max(0, Math.min(sh - h, y));
+      win.moveTo(x, y);
+    } catch(e) { clearInterval(mover); }
+  }, 16);
 }
 
-// CHAOTIC AUDIO ENGINE
+// CHAOTIC AUDIO
 let audioCtx = null;
 let glitchInterval = null;
 
 function initAudio() {
-  if (audioCtx) return;
+  if(audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 }
 
-function playLongNoise(duration) {
-  const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * duration, audioCtx.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1);
-  const s = audioCtx.createBufferSource();
-  const g = audioCtx.createGain();
-  const filter = audioCtx.createBiquadFilter();
-  filter.type = 'bandpass';
-  filter.frequency.value = 200 + Math.random() * 2000;
-  filter.Q.value = 0.5;
-  s.buffer = buf;
-  g.gain.setValueAtTime(0.6, audioCtx.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-  s.connect(filter); filter.connect(g); g.connect(audioCtx.destination);
-  s.start();
+function makeDistortion(amount) {
+  const dist = audioCtx.createWaveShaper();
+  const curve = new Float32Array(256);
+  for(let i=0;i<256;i++){
+    const x=(i*2)/256-1;
+    curve[i]=(Math.PI+amount)*x/(Math.PI+amount*Math.abs(x));
+  }
+  dist.curve = curve;
+  return dist;
 }
 
 function playScream() {
-  // Descending distorted scream like salvin exe
-  const o = audioCtx.createOscillator();
-  const o2 = audioCtx.createOscillator();
-  const g = audioCtx.createGain();
-  const dist = audioCtx.createWaveShaper();
-  const curve = new Float32Array(256);
-  for (let i = 0; i < 256; i++) {
-    const x = (i * 2) / 256 - 1;
-    curve[i] = (Math.PI + 400) * x / (Math.PI + 400 * Math.abs(x));
-  }
-  dist.curve = curve;
-  o.type = 'sawtooth';
-  o2.type = 'square';
-  o.frequency.setValueAtTime(600 + Math.random() * 400, audioCtx.currentTime);
-  o.frequency.exponentialRampToValueAtTime(40 + Math.random() * 80, audioCtx.currentTime + 1.5);
-  o2.frequency.setValueAtTime(300 + Math.random() * 200, audioCtx.currentTime);
-  o2.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 1.5);
-  g.gain.setValueAtTime(0.7, audioCtx.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.5);
+  const o=audioCtx.createOscillator();
+  const o2=audioCtx.createOscillator();
+  const g=audioCtx.createGain();
+  const dist=makeDistortion(600);
+  o.type='sawtooth';
+  o2.type='square';
+  const start=500+Math.random()*800;
+  o.frequency.setValueAtTime(start,audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(30+Math.random()*60,audioCtx.currentTime+2);
+  o2.frequency.setValueAtTime(start*0.5,audioCtx.currentTime);
+  o2.frequency.exponentialRampToValueAtTime(15,audioCtx.currentTime+2);
+  g.gain.setValueAtTime(0.8,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+2);
   o.connect(dist); o2.connect(dist); dist.connect(g); g.connect(audioCtx.destination);
   o.start(); o2.start();
-  o.stop(audioCtx.currentTime + 1.5);
-  o2.stop(audioCtx.currentTime + 1.5);
+  o.stop(audioCtx.currentTime+2); o2.stop(audioCtx.currentTime+2);
 }
 
 function playBrokenBeat() {
-  for (let i = 0; i < 8; i++) {
-    setTimeout(() => {
-      const o = audioCtx.createOscillator();
-      const g = audioCtx.createGain();
-      o.type = i % 2 === 0 ? 'square' : 'sawtooth';
-      o.frequency.value = [55, 110, 220, 440, 880][Math.floor(Math.random() * 5)];
-      g.gain.setValueAtTime(0.5, audioCtx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
-      o.connect(g); g.connect(audioCtx.destination);
-      o.start(); o.stop(audioCtx.currentTime + 0.08);
-    }, i * 60);
+  for(let i=0;i<16;i++){
+    setTimeout(()=>{
+      const o=audioCtx.createOscillator();
+      const g=audioCtx.createGain();
+      const dist=makeDistortion(400);
+      o.type=i%3===0?'square':'sawtooth';
+      o.frequency.value=[27,55,110,220,440,880,1760][Math.floor(Math.random()*7)];
+      g.gain.setValueAtTime(0.6,audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.1);
+      o.connect(dist); dist.connect(g); g.connect(audioCtx.destination);
+      o.start(); o.stop(audioCtx.currentTime+0.1);
+    },i*55);
   }
 }
 
 function playGlitchStutter() {
-  for (let i = 0; i < 20; i++) {
-    setTimeout(() => {
-      const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.04, audioCtx.sampleRate);
-      const d = buf.getChannelData(0);
-      const freq = 50 + Math.random() * 500;
-      for (let j = 0; j < d.length; j++) d[j] = Math.sin(2 * Math.PI * freq * j / audioCtx.sampleRate) * (Math.random() > 0.5 ? 1 : -1);
-      const s = audioCtx.createBufferSource();
-      const g = audioCtx.createGain();
-      s.buffer = buf;
-      g.gain.value = Math.random() * 0.6;
-      s.connect(g); g.connect(audioCtx.destination);
-      s.start();
-    }, i * 45);
+  for(let i=0;i<30;i++){
+    setTimeout(()=>{
+      const buf=audioCtx.createBuffer(1,audioCtx.sampleRate*0.035,audioCtx.sampleRate);
+      const d=buf.getChannelData(0);
+      const freq=30+Math.random()*800;
+      for(let j=0;j<d.length;j++) d[j]=Math.sin(2*Math.PI*freq*j/audioCtx.sampleRate)*(Math.random()>0.4?1:-1)*0.8;
+      const s=audioCtx.createBufferSource();
+      const g=audioCtx.createGain();
+      s.buffer=buf; g.gain.value=0.5+Math.random()*0.4;
+      s.connect(g); g.connect(audioCtx.destination); s.start();
+    },i*35);
   }
 }
 
 function playDeepRumble() {
-  const o = audioCtx.createOscillator();
-  const g = audioCtx.createGain();
-  o.type = 'sine';
-  o.frequency.setValueAtTime(30, audioCtx.currentTime);
-  o.frequency.linearRampToValueAtTime(15, audioCtx.currentTime + 2);
-  g.gain.setValueAtTime(0.9, audioCtx.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 2);
-  o.connect(g); g.connect(audioCtx.destination);
-  o.start(); o.stop(audioCtx.currentTime + 2);
+  const o=audioCtx.createOscillator();
+  const o2=audioCtx.createOscillator();
+  const g=audioCtx.createGain();
+  o.type='sine'; o2.type='sine';
+  o.frequency.setValueAtTime(40,audioCtx.currentTime);
+  o.frequency.linearRampToValueAtTime(8,audioCtx.currentTime+3);
+  o2.frequency.setValueAtTime(60,audioCtx.currentTime);
+  o2.frequency.linearRampToValueAtTime(12,audioCtx.currentTime+3);
+  g.gain.setValueAtTime(1.0,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+3);
+  o.connect(g); o2.connect(g); g.connect(audioCtx.destination);
+  o.start(); o2.start();
+  o.stop(audioCtx.currentTime+3); o2.stop(audioCtx.currentTime+3);
+}
+
+function playStaticBurst() {
+  const dur=0.2+Math.random()*0.6;
+  const buf=audioCtx.createBuffer(1,audioCtx.sampleRate*dur,audioCtx.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*0.9;
+  const s=audioCtx.createBufferSource();
+  const g=audioCtx.createGain();
+  const filter=audioCtx.createBiquadFilter();
+  filter.type='bandpass';
+  filter.frequency.value=300+Math.random()*3000;
+  filter.Q.value=0.3;
+  s.buffer=buf;
+  g.gain.setValueAtTime(0.7,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur);
+  s.connect(filter); filter.connect(g); g.connect(audioCtx.destination); s.start();
+}
+
+function playAlarm() {
+  for(let i=0;i<6;i++){
+    setTimeout(()=>{
+      const o=audioCtx.createOscillator();
+      const g=audioCtx.createGain();
+      o.type='square';
+      o.frequency.value=i%2===0?1800:900;
+      g.gain.setValueAtTime(0.5,audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.12);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(); o.stop(audioCtx.currentTime+0.12);
+    },i*130);
+  }
+}
+
+function playEverythingAtOnce() {
+  playScream();
+  setTimeout(playBrokenBeat,100);
+  setTimeout(playDeepRumble,200);
+  setTimeout(playStaticBurst,300);
 }
 
 function playRandomChaos() {
-  if (!audioCtx) return;
-  const pick = Math.floor(Math.random() * 6);
-  if (pick === 0) playScream();
-  else if (pick === 1) playBrokenBeat();
-  else if (pick === 2) playGlitchStutter();
-  else if (pick === 3) playDeepRumble();
-  else if (pick === 4) playLongNoise(0.3 + Math.random() * 0.5);
-  else { playScream(); setTimeout(playBrokenBeat, 200); }
+  if(!audioCtx) return;
+  const pick=Math.floor(Math.random()*8);
+  if(pick===0) playScream();
+  else if(pick===1) playBrokenBeat();
+  else if(pick===2) playGlitchStutter();
+  else if(pick===3) playDeepRumble();
+  else if(pick===4) playStaticBurst();
+  else if(pick===5) playAlarm();
+  else if(pick===6){ playScream(); setTimeout(playGlitchStutter,300); }
+  else playEverythingAtOnce();
 }
 
 function startChaoticAudio() {
   initAudio();
-  playScream();
-  playDeepRumble();
-  glitchInterval = setInterval(() => {
-    playRandomChaos();
-  }, 180);
+  playEverythingAtOnce();
+  glitchInterval = setInterval(()=>{ playRandomChaos(); }, 220);
 }
 
 function stopChaoticAudio() {
-  if (glitchInterval) { clearInterval(glitchInterval); glitchInterval = null; }
+  if(glitchInterval){ clearInterval(glitchInterval); glitchInterval=null; }
 }
 
 // Canvas glitch
-const canvas = document.getElementById('glitch-canvas');
-const ctx2 = canvas.getContext('2d');
-let animId = null;
-function drawGlitch() {
-  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-  ctx2.clearRect(0, 0, canvas.width, canvas.height);
-  const count = Math.floor(Math.random() * 20) + 5;
-  for (let i = 0; i < count; i++) {
-    ctx2.fillStyle = `rgba(${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)},${Math.random()*.7+.1})`;
-    ctx2.fillRect(Math.random()*canvas.width-50, Math.random()*canvas.height, Math.random()*canvas.width, Math.random()*20+1);
+const canvas=document.getElementById('glitch-canvas');
+const ctx2=canvas.getContext('2d');
+let animId=null;
+function drawGlitch(){
+  canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+  ctx2.clearRect(0,0,canvas.width,canvas.height);
+  const count=Math.floor(Math.random()*25)+8;
+  for(let i=0;i<count;i++){
+    ctx2.fillStyle=`rgba(${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)},${Math.random()*.8+.1})`;
+    ctx2.fillRect(Math.random()*canvas.width-50,Math.random()*canvas.height,Math.random()*canvas.width,Math.random()*30+1);
   }
-  // Extra: random full screen flash
-  if (Math.random() > 0.92) {
-    ctx2.fillStyle = `rgba(255,0,0,0.15)`;
-    ctx2.fillRect(0, 0, canvas.width, canvas.height);
+  if(Math.random()>.88){
+    ctx2.fillStyle=`rgba(255,0,0,0.2)`;
+    ctx2.fillRect(0,0,canvas.width,canvas.height);
   }
-  animId = requestAnimationFrame(drawGlitch);
+  if(Math.random()>.92){
+    ctx2.fillStyle=`rgba(0,255,0,0.1)`;
+    ctx2.fillRect(0,0,canvas.width,canvas.height);
+  }
+  animId=requestAnimationFrame(drawGlitch);
 }
 
-const lines = [
+const lines=[
   {t:'SYSTEM BOOT SEQUENCE INITIATED...',c:'t-white',d:0},
-  {t:'Loading kernel modules...',c:'t-cyan',d:300},
-  {t:'[  OK  ] Reached target Local File Systems.',c:'t-cyan',d:600},
-  {t:'[  OK  ] Started Network Manager.',c:'t-cyan',d:800},
-  {t:'Scanning system integrity...',c:'',d:1000},
-  {t:'>>> DETECTED: 1,337 CRITICAL THREATS',c:'t-red',d:1400},
-  {t:'>>> ROOTKIT FOUND IN SYSTEM32',c:'t-red',d:1700},
-  {t:'>>> ERROR: FIREWALL COMPLETELY DESTROYED',c:'t-red',d:2000},
-  {t:'>>> ANTIVIRUS.EXE HAS STOPPED WORKING',c:'t-red',d:2300},
-  {t:'Attempting emergency recovery...',c:'t-yellow',d:2600},
-  {t:'[FAIL] recovery.exe crashed (exit code 0xDEAD)',c:'t-red',d:3100},
-  {t:'[FAIL] backup_recovery.exe also crashed lol',c:'t-red',d:3400},
-  {t:'Uploading ALL your files to hacker server ☁️',c:'t-yellow',d:3700},
-  {t:'sending_nudes_folder.zip ████████░░ 80%',c:'t-red',d:4000},
-  {t:'>>> PASSWORDS.TXT CAPTURED (all 47 of them)',c:'t-red',d:4400},
-  {t:'>>> CREDIT CARD **** **** **** 1337 STOLEN',c:'t-red',d:4700},
-  {t:'>>> MINECRAFT ACCOUNT STOLEN 😂',c:'t-red',d:5000},
-  {t:'>>> ROBLOX ROBUX BALANCE: 0 (you\'re welcome)',c:'t-red',d:5300},
-  {t:'>>> DISCORD TOKEN LEAKED TO ENTIRE INTERNET',c:'t-red',d:5600},
-  {t:'Initiating self destruct sequence...',c:'t-yellow',d:6000},
-  {t:'3...',c:'t-red',d:6500},
-  {t:'2...',c:'t-red',d:7000},
-  {t:'1...',c:'t-red',d:7500},
-  {t:'KERNEL PANIC — not syncing: fatal exception in interrupt',c:'t-red',d:8000},
-  {t:'CPU[0]: PRANK_OVERFLOW at 0xDEADBEEF',c:'t-red',d:8300},
-  {t:'CPU[1]: also dead lmao',c:'t-red',d:8500},
-  {t:'%$#@!&*%$#@!... ░▒▓█▓▒░',c:'t-red',d:8700},
+  {t:'Loading kernel modules...',c:'t-cyan',d:400},
+  {t:'[  OK  ] Reached target Local File Systems.',c:'t-cyan',d:800},
+  {t:'[  OK  ] Started Network Manager.',c:'t-cyan',d:1100},
+  {t:'[  OK  ] Connected to internet.',c:'t-cyan',d:1400},
+  {t:'Scanning system integrity...',c:'',d:1700},
+  {t:'.......................................',c:'',d:2100},
+  {t:'>>> DETECTED: 1,337 CRITICAL THREATS',c:'t-red',d:2600},
+  {t:'>>> ROOTKIT FOUND IN SYSTEM32',c:'t-red',d:3000},
+  {t:'>>> ERROR: FIREWALL COMPLETELY DESTROYED',c:'t-red',d:3400},
+  {t:'>>> ANTIVIRUS.EXE HAS STOPPED WORKING',c:'t-red',d:3800},
+  {t:'>>> WINDOWS DEFENDER DELETED ITSELF',c:'t-red',d:4100},
+  {t:'Attempting emergency recovery...',c:'t-yellow',d:4500},
+  {t:'[FAIL] recovery.exe crashed (exit code 0xDEAD)',c:'t-red',d:5100},
+  {t:'[FAIL] backup_recovery.exe also crashed lol',c:'t-red',d:5500},
+  {t:'[FAIL] last_hope.exe deleted by hacker',c:'t-red',d:5900},
+  {t:'Uploading ALL your files to hacker server ☁️',c:'t-yellow',d:6300},
+  {t:'uploading_everything.zip ████████░░ 80%',c:'t-red',d:6700},
+  {t:'>>> ALL PASSWORDS CAPTURED (47 accounts)',c:'t-red',d:7200},
+  {t:'>>> CREDIT CARD **** **** **** 1337 STOLEN',c:'t-red',d:7600},
+  {t:'>>> MINECRAFT ACCOUNT STOLEN 😂',c:'t-red',d:8000},
+  {t:'>>> ROBLOX ROBUX: 0 (you\'re welcome)',c:'t-red',d:8400},
+  {t:'>>> DISCORD TOKEN LEAKED TO ENTIRE INTERNET',c:'t-red',d:8800},
+  {t:'>>> GOOGLE SEARCH HISTORY... oh no.',c:'t-red',d:9200},
+  {t:'Initiating self destruct sequence...',c:'t-yellow',d:9700},
+  {t:'3...',c:'t-red',d:10400},
+  {t:'2...',c:'t-red',d:11100},
+  {t:'1...',c:'t-red',d:11800},
+  {t:'KERNEL PANIC — fatal exception in interrupt handler',c:'t-red',d:12400},
+  {t:'CPU[0]: PRANK_OVERFLOW at 0xDEADBEEF',c:'t-red',d:12800},
+  {t:'CPU[1]: also dead lmao',c:'t-red',d:13100},
+  {t:'CPU[2]: same',c:'t-red',d:13300},
+  {t:'%$#@!&*%$#@!... ░▒▓█▓▒░▒▓█',c:'t-red',d:13500},
 ];
 
-function startPrank() {
+function startPrank(){
   initAudio();
   checkPopupPermission();
-  document.getElementById('prankBtn').disabled = true;
-  document.getElementById('prankBtn').textContent = '💀 TOO LATE...';
-  document.getElementById('os-overlay').style.display = 'flex';
+  document.getElementById('prankBtn').disabled=true;
+  document.getElementById('prankBtn').textContent='💀 TOO LATE...';
+  document.getElementById('os-overlay').style.display='flex';
   document.getElementById('terminal').classList.add('active');
   startChaoticAudio();
 
-  const out = document.getElementById('terminal-output');
-  lines.forEach(({t, c, d}) => {
-    setTimeout(() => {
-      const l = document.createElement('div');
-      l.className = 't-line ' + c;
-      l.textContent = '> ' + t;
-      out.appendChild(l);
-      out.scrollTop = out.scrollHeight;
-    }, d);
+  const out=document.getElementById('terminal-output');
+  lines.forEach(({t,c,d})=>{
+    setTimeout(()=>{
+      const l=document.createElement('div');
+      l.className='t-line '+c; l.textContent='> '+t;
+      out.appendChild(l); out.scrollTop=out.scrollHeight;
+    },d);
   });
 
-  setTimeout(() => {
+  // Switch to BSOD after terminal
+  setTimeout(()=>{
     document.getElementById('terminal').classList.remove('active');
     document.getElementById('bsod').classList.add('active');
 
-    let pct = 0;
-    const bar = document.getElementById('bsod-bar');
-    const pctEl = document.getElementById('bsod-pct');
-    const prog = setInterval(() => {
-      pct += Math.floor(Math.random() * 7) + 1;
-      if (pct >= 100) { pct = 100; clearInterval(prog); }
-      bar.style.width = pct + '%';
-      pctEl.textContent = pct;
-    }, 120);
+    let pct=0;
+    const bar=document.getElementById('bsod-bar');
+    const pctEl=document.getElementById('bsod-pct');
+    const prog=setInterval(()=>{
+      pct+=Math.floor(Math.random()*5)+1;
+      if(pct>=100){pct=100;clearInterval(prog);}
+      bar.style.width=pct+'%'; pctEl.textContent=pct;
+    },180);
 
-    setTimeout(() => { canvas.classList.add('active'); drawGlitch(); }, 300);
+    setTimeout(()=>{ canvas.classList.add('active'); drawGlitch(); },300);
 
-    // Open tabs OR autoclicker fallback — 600ms apart (2x slower)
-    if (canOpenTabs) {
-      for (let i = 0; i < 10; i++) {
-        setTimeout(() => window.open('https://www.youtube.com/watch?v=SCaAetNzXIc', '_blank'), 2000 + i * 600);
+    if(canOpenTabs){
+      // Open 20 moving windows, 1200ms apart
+      for(let i=0;i<20;i++){
+        setTimeout(()=>{ openMovingWindow(idiotUrl, i); }, 1500 + i*1200);
       }
-      setTimeout(() => window.open('https://www.youtube.com/watch?v=22z31vdqnWI', '_blank'), 2000 + 10 * 600 + 1000);
+      // Final window after all 20
+      setTimeout(()=>{ openMovingWindow(finalUrl, 99); }, 1500 + 20*1200 + 2000);
     } else {
-      // Can't open tabs — autoclicker on hidden links instead
-      setTimeout(() => startAutoClicker(), 2000);
-      // Stop after ~20 seconds
-      setTimeout(() => stopAutoClicker(), 22000);
+      // Fallback: autoclicker on hidden links
+      setTimeout(()=>startAutoClicker(), 2000);
+      setTimeout(()=>stopAutoClicker(), 30000);
     }
 
-  }, 9500);
+  }, 14500);
 }
 </script>
 </body>
