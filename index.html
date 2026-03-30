@@ -1,452 +1,279 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>secret stuff</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: #000;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: monospace;
-    overflow: hidden;
-  }
-  .bg-links { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
-  .bg-links a {
-    position: absolute;
-    color: transparent;
-    background: transparent;
-    text-decoration: none;
-    font-size: 1px;
-    width: 60px; height: 60px;
-    display: block;
-    pointer-events: all;
-    cursor: default;
-  }
-  .box {
-    position: relative; z-index: 10;
-    background: #0a0a0a;
-    border: 2px solid #f85149;
-    border-radius: 10px;
-    padding: 40px 36px;
-    text-align: center;
-    box-shadow: 0 0 40px rgba(248,81,73,.2);
-  }
-  .box-text {
-    font-size: 22px;
-    font-weight: 700;
-    color: #f85149;
-    text-shadow: 0 0 20px rgba(248,81,73,.6);
-    letter-spacing: 1px;
-    margin-bottom: 28px;
-    animation: flicker 3s infinite;
-  }
-  @keyframes flicker {
-    0%,95%,100%{opacity:1} 96%{opacity:.6} 97%{opacity:1} 98%{opacity:.3} 99%{opacity:1}
-  }
-  .prank-btn {
-    background: #1a0a0a;
-    border: 2px solid #f85149;
-    color: #f85149;
-    font-family: monospace;
-    font-size: 15px;
-    font-weight: 700;
-    padding: 14px 40px;
-    border-radius: 8px;
-    cursor: pointer;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    box-shadow: 0 0 20px rgba(248,81,73,.3);
-    transition: all .2s;
-  }
-  .prank-btn:hover { box-shadow: 0 0 40px rgba(248,81,73,.7); transform: scale(1.05); }
-
-  #os-overlay {
-    display: none; position: fixed; inset: 0; background: #000;
-    z-index: 9999; font-family: monospace; flex-direction: column;
-  }
-  #terminal {
-    display: none; position: absolute; inset: 0; background: #0d0d0d;
-    color: #00ff41; padding: 24px; z-index: 1; flex-direction: column;
-    overflow: hidden; font-size: 13px; line-height: 1.6;
-  }
-  #terminal.active { display: flex; }
-  #terminal-output { flex: 1; overflow: hidden; }
-  .t-line { opacity: 0; animation: fadein .05s forwards; }
-  @keyframes fadein { to { opacity: 1; } }
-  .t-red { color: #f85149; }
-  .t-yellow { color: #e3b341; }
-  .t-cyan { color: #00ffff; }
-  .t-white { color: #fff; }
-  #bsod {
-    display: none; position: absolute; inset: 0; background: #0000aa;
-    color: #aaa; padding: 40px; z-index: 2; flex-direction: column; gap: 16px; font-size: 14px;
-  }
-  #bsod.active { display: flex; }
-  #bsod .sad { font-size: 64px; margin-bottom: 8px; }
-  #bsod h2 { font-size: 24px; color: #fff; margin-bottom: 16px; }
-  #bsod p { max-width: 600px; line-height: 1.8; }
-  #bsod .bar-wrap { width: 300px; height: 20px; background: #0000aa; border: 2px solid #fff; margin-top: 8px; }
-  #bsod .bar-fill { height: 100%; background: #fff; width: 0%; }
-  #glitch-canvas { display: none; position: absolute; inset: 0; z-index: 3; pointer-events: none; }
-  #glitch-canvas.active { display: block; }
-</style>
-</head>
-<body>
-
-<div class="bg-links" id="bgLinks"></div>
-
-<div class="box">
-  <div class="box-text">⚠ Click the button below to know secret stuff ⚠</div>
-  <button class="prank-btn" id="prankBtn" onclick="startPrank()">🔴 CLICK HERE FOR SECRET STUFF 🔴</button>
-</div>
-
-<div id="os-overlay">
-  <div id="terminal"><div id="terminal-output"></div></div>
-  <div id="bsod">
-    <div class="sad">:(</div>
-    <h2>Your PC ran into a problem and needs to restart.</h2>
-    <p>We're collecting some error info, then we'll restart for you.</p>
-    <p style="margin-top:12px;">Error: <strong style="color:#fff;">SYSTEM_TOTALLY_FINE_TRUST_US_0x000PRANK</strong></p>
-    <div style="color:#fff;margin-top:20px;">Collecting data: <span id="bsod-pct">0</span>%</div>
-    <div class="bar-wrap"><div class="bar-fill" id="bsod-bar"></div></div>
-  </div>
-  <canvas id="glitch-canvas"></canvas>
-</div>
-
-<script>
-// Hidden bg links
-const bgc = document.getElementById('bgLinks');
-const hiddenLinks = [];
-for(let i=0;i<80;i++){
-  const a=document.createElement('a');
-  a.href='https://www.youtube.com/watch?v=SCaAetNzXIc';
-  a.target='_blank'; a.rel='noopener noreferrer';
-  a.style.left=Math.random()*100+'%';
-  a.style.top=Math.random()*100+'%';
-  a.textContent='.';
-  bgc.appendChild(a);
-  hiddenLinks.push(a);
-}
-
-// Check popup permission
-let canOpenTabs = false;
-let autoClickInterval = null;
-
-function checkPopupPermission() {
-  try {
-    const test = window.open('about:blank','_blank','width=1,height=1,left=-100,top=-100');
-    if (test && !test.closed) { test.close(); canOpenTabs = true; }
-    else { canOpenTabs = false; }
-  } catch(e) { canOpenTabs = false; }
-}
-
-function startAutoClicker() {
-  let idx = 0;
-  autoClickInterval = setInterval(() => {
-    if(idx < hiddenLinks.length){ hiddenLinks[idx].click(); idx++; }
-    else { idx = 0; }
-  }, 1200);
-}
-
-// MOVING WINDOWS — youareanidiot style
-const idiotUrl = 'https://www.youtube.com/watch?v=SCaAetNzXIc';
-const finalUrl = 'https://www.youtube.com/watch?v=22z31vdqnWI';
-const openedWindows = [];
-
-function openMovingWindow(url, index) {
-  const sw = window.screen.width;
-  const sh = window.screen.height;
-  const w = 420;
-  const h = 300;
-
-  // Start at random position
-  let x = Math.floor(Math.random() * (sw - w));
-  let y = Math.floor(Math.random() * (sh - h));
-
-  const features = `width=${w},height=${h},left=${x},top=${y},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`;
-  const win = window.open(url, `prankwin_${index}_${Date.now()}`, features);
-
-  if (!win || win.closed) return;
-  openedWindows.push(win);
-
-  // Move the window around the screen
-  let dx = (Math.random() > 0.5 ? 1 : -1) * (3 + Math.random() * 4);
-  let dy = (Math.random() > 0.5 ? 1 : -1) * (3 + Math.random() * 4);
-
-  const mover = setInterval(() => {
-    if (!win || win.closed) { clearInterval(mover); return; }
-    try {
-      x += dx; y += dy;
-      if (x <= 0 || x >= sw - w) dx *= -1;
-      if (y <= 0 || y >= sh - h) dy *= -1;
-      x = Math.max(0, Math.min(sw - w, x));
-      y = Math.max(0, Math.min(sh - h, y));
-      win.moveTo(x, y);
-    } catch(e) { clearInterval(mover); }
-  }, 16);
-}
-
-// CHAOTIC AUDIO
-let audioCtx = null;
-let glitchInterval = null;
-
-function initAudio() {
-  if(audioCtx) return;
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-}
-
-function makeDistortion(amount) {
-  const dist = audioCtx.createWaveShaper();
-  const curve = new Float32Array(256);
-  for(let i=0;i<256;i++){
-    const x=(i*2)/256-1;
-    curve[i]=(Math.PI+amount)*x/(Math.PI+amount*Math.abs(x));
-  }
-  dist.curve = curve;
-  return dist;
-}
-
-function playScream() {
-  const o=audioCtx.createOscillator();
-  const o2=audioCtx.createOscillator();
-  const g=audioCtx.createGain();
-  const dist=makeDistortion(600);
-  o.type='sawtooth';
-  o2.type='square';
-  const start=500+Math.random()*800;
-  o.frequency.setValueAtTime(start,audioCtx.currentTime);
-  o.frequency.exponentialRampToValueAtTime(30+Math.random()*60,audioCtx.currentTime+2);
-  o2.frequency.setValueAtTime(start*0.5,audioCtx.currentTime);
-  o2.frequency.exponentialRampToValueAtTime(15,audioCtx.currentTime+2);
-  g.gain.setValueAtTime(0.8,audioCtx.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+2);
-  o.connect(dist); o2.connect(dist); dist.connect(g); g.connect(audioCtx.destination);
-  o.start(); o2.start();
-  o.stop(audioCtx.currentTime+2); o2.stop(audioCtx.currentTime+2);
-}
-
-function playBrokenBeat() {
-  for(let i=0;i<16;i++){
-    setTimeout(()=>{
-      const o=audioCtx.createOscillator();
-      const g=audioCtx.createGain();
-      const dist=makeDistortion(400);
-      o.type=i%3===0?'square':'sawtooth';
-      o.frequency.value=[27,55,110,220,440,880,1760][Math.floor(Math.random()*7)];
-      g.gain.setValueAtTime(0.6,audioCtx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.1);
-      o.connect(dist); dist.connect(g); g.connect(audioCtx.destination);
-      o.start(); o.stop(audioCtx.currentTime+0.1);
-    },i*55);
-  }
-}
-
-function playGlitchStutter() {
-  for(let i=0;i<30;i++){
-    setTimeout(()=>{
-      const buf=audioCtx.createBuffer(1,audioCtx.sampleRate*0.035,audioCtx.sampleRate);
-      const d=buf.getChannelData(0);
-      const freq=30+Math.random()*800;
-      for(let j=0;j<d.length;j++) d[j]=Math.sin(2*Math.PI*freq*j/audioCtx.sampleRate)*(Math.random()>0.4?1:-1)*0.8;
-      const s=audioCtx.createBufferSource();
-      const g=audioCtx.createGain();
-      s.buffer=buf; g.gain.value=0.5+Math.random()*0.4;
-      s.connect(g); g.connect(audioCtx.destination); s.start();
-    },i*35);
-  }
-}
-
-function playDeepRumble() {
-  const o=audioCtx.createOscillator();
-  const o2=audioCtx.createOscillator();
-  const g=audioCtx.createGain();
-  o.type='sine'; o2.type='sine';
-  o.frequency.setValueAtTime(40,audioCtx.currentTime);
-  o.frequency.linearRampToValueAtTime(8,audioCtx.currentTime+3);
-  o2.frequency.setValueAtTime(60,audioCtx.currentTime);
-  o2.frequency.linearRampToValueAtTime(12,audioCtx.currentTime+3);
-  g.gain.setValueAtTime(1.0,audioCtx.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+3);
-  o.connect(g); o2.connect(g); g.connect(audioCtx.destination);
-  o.start(); o2.start();
-  o.stop(audioCtx.currentTime+3); o2.stop(audioCtx.currentTime+3);
-}
-
-function playStaticBurst() {
-  const dur=0.2+Math.random()*0.6;
-  const buf=audioCtx.createBuffer(1,audioCtx.sampleRate*dur,audioCtx.sampleRate);
-  const d=buf.getChannelData(0);
-  for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*0.9;
-  const s=audioCtx.createBufferSource();
-  const g=audioCtx.createGain();
-  const filter=audioCtx.createBiquadFilter();
-  filter.type='bandpass';
-  filter.frequency.value=300+Math.random()*3000;
-  filter.Q.value=0.3;
-  s.buffer=buf;
-  g.gain.setValueAtTime(0.7,audioCtx.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur);
-  s.connect(filter); filter.connect(g); g.connect(audioCtx.destination); s.start();
-}
-
-function playAlarm() {
-  for(let i=0;i<6;i++){
-    setTimeout(()=>{
-      const o=audioCtx.createOscillator();
-      const g=audioCtx.createGain();
-      o.type='square';
-      o.frequency.value=i%2===0?1800:900;
-      g.gain.setValueAtTime(0.5,audioCtx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.12);
-      o.connect(g); g.connect(audioCtx.destination);
-      o.start(); o.stop(audioCtx.currentTime+0.12);
-    },i*130);
-  }
-}
-
-function playEverythingAtOnce() {
-  playScream();
-  setTimeout(playBrokenBeat,100);
-  setTimeout(playDeepRumble,200);
-  setTimeout(playStaticBurst,300);
-}
-
-function playRandomChaos() {
-  if(!audioCtx) return;
-  const pick=Math.floor(Math.random()*8);
-  if(pick===0) playScream();
-  else if(pick===1) playBrokenBeat();
-  else if(pick===2) playGlitchStutter();
-  else if(pick===3) playDeepRumble();
-  else if(pick===4) playStaticBurst();
-  else if(pick===5) playAlarm();
-  else if(pick===6){ playScream(); setTimeout(playGlitchStutter,300); }
-  else playEverythingAtOnce();
-}
-
-function startChaoticAudio() {
-  initAudio();
-  playEverythingAtOnce();
-  glitchInterval = setInterval(()=>{ playRandomChaos(); }, 220);
-}
-
-function stopChaoticAudio() {
-  if(glitchInterval){ clearInterval(glitchInterval); glitchInterval=null; }
-}
-
-// Canvas glitch
-const canvas=document.getElementById('glitch-canvas');
-const ctx2=canvas.getContext('2d');
-let animId=null;
-function drawGlitch(){
-  canvas.width=window.innerWidth; canvas.height=window.innerHeight;
-  ctx2.clearRect(0,0,canvas.width,canvas.height);
-  const count=Math.floor(Math.random()*25)+8;
-  for(let i=0;i<count;i++){
-    ctx2.fillStyle=`rgba(${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)},${Math.random()*.8+.1})`;
-    ctx2.fillRect(Math.random()*canvas.width-50,Math.random()*canvas.height,Math.random()*canvas.width,Math.random()*30+1);
-  }
-  if(Math.random()>.88){
-    ctx2.fillStyle=`rgba(255,0,0,0.2)`;
-    ctx2.fillRect(0,0,canvas.width,canvas.height);
-  }
-  if(Math.random()>.92){
-    ctx2.fillStyle=`rgba(0,255,0,0.1)`;
-    ctx2.fillRect(0,0,canvas.width,canvas.height);
-  }
-  animId=requestAnimationFrame(drawGlitch);
-}
-
-const lines=[
-  {t:'SYSTEM BOOT SEQUENCE INITIATED...',c:'t-white',d:0},
-  {t:'Loading kernel modules...',c:'t-cyan',d:400},
-  {t:'[  OK  ] Reached target Local File Systems.',c:'t-cyan',d:800},
-  {t:'[  OK  ] Started Network Manager.',c:'t-cyan',d:1100},
-  {t:'[  OK  ] Connected to internet.',c:'t-cyan',d:1400},
-  {t:'Scanning system integrity...',c:'',d:1700},
-  {t:'.......................................',c:'',d:2100},
-  {t:'>>> DETECTED: 1,337 CRITICAL THREATS',c:'t-red',d:2600},
-  {t:'>>> ROOTKIT FOUND IN SYSTEM32',c:'t-red',d:3000},
-  {t:'>>> ERROR: FIREWALL COMPLETELY DESTROYED',c:'t-red',d:3400},
-  {t:'>>> ANTIVIRUS.EXE HAS STOPPED WORKING',c:'t-red',d:3800},
-  {t:'>>> WINDOWS DEFENDER DELETED ITSELF',c:'t-red',d:4100},
-  {t:'Attempting emergency recovery...',c:'t-yellow',d:4500},
-  {t:'[FAIL] recovery.exe crashed (exit code 0xDEAD)',c:'t-red',d:5100},
-  {t:'[FAIL] backup_recovery.exe also crashed lol',c:'t-red',d:5500},
-  {t:'[FAIL] last_hope.exe deleted by hacker',c:'t-red',d:5900},
-  {t:'Uploading ALL your files to hacker server ☁️',c:'t-yellow',d:6300},
-  {t:'uploading_everything.zip ████████░░ 80%',c:'t-red',d:6700},
-  {t:'>>> ALL PASSWORDS CAPTURED (47 accounts)',c:'t-red',d:7200},
-  {t:'>>> CREDIT CARD **** **** **** 1337 STOLEN',c:'t-red',d:7600},
-  {t:'>>> MINECRAFT ACCOUNT STOLEN 😂',c:'t-red',d:8000},
-  {t:'>>> ROBLOX ROBUX: 0 (you\'re welcome)',c:'t-red',d:8400},
-  {t:'>>> DISCORD TOKEN LEAKED TO ENTIRE INTERNET',c:'t-red',d:8800},
-  {t:'>>> GOOGLE SEARCH HISTORY... oh no.',c:'t-red',d:9200},
-  {t:'Initiating self destruct sequence...',c:'t-yellow',d:9700},
-  {t:'3...',c:'t-red',d:10400},
-  {t:'2...',c:'t-red',d:11100},
-  {t:'1...',c:'t-red',d:11800},
-  {t:'KERNEL PANIC — fatal exception in interrupt handler',c:'t-red',d:12400},
-  {t:'CPU[0]: PRANK_OVERFLOW at 0xDEADBEEF',c:'t-red',d:12800},
-  {t:'CPU[1]: also dead lmao',c:'t-red',d:13100},
-  {t:'CPU[2]: same',c:'t-red',d:13300},
-  {t:'%$#@!&*%$#@!... ░▒▓█▓▒░▒▓█',c:'t-red',d:13500},
-];
-
-function startPrank(){
-  initAudio();
-  checkPopupPermission();
-  document.getElementById('prankBtn').disabled=true;
-  document.getElementById('prankBtn').textContent='💀 TOO LATE...';
-  document.getElementById('os-overlay').style.display='flex';
-  document.getElementById('terminal').classList.add('active');
-  startChaoticAudio();
-
-  const out=document.getElementById('terminal-output');
-  lines.forEach(({t,c,d})=>{
-    setTimeout(()=>{
-      const l=document.createElement('div');
-      l.className='t-line '+c; l.textContent='> '+t;
-      out.appendChild(l); out.scrollTop=out.scrollHeight;
-    },d);
-  });
-
-  // Switch to BSOD after terminal
-  setTimeout(()=>{
-    document.getElementById('terminal').classList.remove('active');
-    document.getElementById('bsod').classList.add('active');
-
-    let pct=0;
-    const bar=document.getElementById('bsod-bar');
-    const pctEl=document.getElementById('bsod-pct');
-    const prog=setInterval(()=>{
-      pct+=Math.floor(Math.random()*5)+1;
-      if(pct>=100){pct=100;clearInterval(prog);}
-      bar.style.width=pct+'%'; pctEl.textContent=pct;
-    },180);
-
-    setTimeout(()=>{ canvas.classList.add('active'); drawGlitch(); },300);
-
-    if(canOpenTabs){
-      // Open 20 moving windows, 1200ms apart
-      for(let i=0;i<20;i++){
-        setTimeout(()=>{ openMovingWindow(idiotUrl, i); }, 1500 + i*1200);
-      }
-      // Final window after all 20
-      setTimeout(()=>{ openMovingWindow(finalUrl, 99); }, 1500 + 20*1200 + 2000);
-    } else {
-      // Fallback: autoclicker on hidden links
-      setTimeout(()=>startAutoClicker(), 2000);
-      setTimeout(()=>stopAutoClicker(), 30000);
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Free Downloads | Secure Software Hub</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
 
-  }, 14500);
-}
-</script>
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      width: 100%;
+      background: white;
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #1e2a3a 0%, #0f172a 100%);
+      padding: 40px;
+      text-align: center;
+      color: white;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+    }
+
+    .content {
+      padding: 40px;
+    }
+
+    .download-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 25px;
+      margin-bottom: 30px;
+    }
+
+    .download-card {
+      background: #f8fafc;
+      border-radius: 16px;
+      padding: 25px;
+      text-align: center;
+      transition: transform 0.3s, box-shadow 0.3s;
+      border: 1px solid #e2e8f0;
+    }
+
+    .download-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+
+    .icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+    }
+
+    h3 {
+      font-size: 1.5rem;
+      margin-bottom: 10px;
+      color: #1e293b;
+    }
+
+    .description {
+      color: #64748b;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+    }
+
+    .download-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 50px;
+      cursor: pointer;
+      width: 100%;
+      transition: transform 0.2s, box-shadow 0.2s;
+      font-family: inherit;
+    }
+
+    .download-btn:hover {
+      transform: scale(1.02);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .file-status {
+      margin-top: 12px;
+      font-size: 0.75rem;
+      color: #22c55e;
+      background: #dcfce7;
+      padding: 5px 10px;
+      border-radius: 20px;
+      display: inline-block;
+    }
+
+    .note {
+      background: #f1f5f9;
+      padding: 15px;
+      border-radius: 12px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: #475569;
+      margin-top: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .header h1 { font-size: 1.8rem; }
+      .content { padding: 25px; }
+      .download-grid { gap: 15px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚀 Free Software Downloads</h1>
+      <p>Fast, secure, and trusted downloads</p>
+    </div>
+    
+    <div class="content">
+      <div class="download-grid">
+        <!-- Button 1: NordVPN -->
+        <div class="download-card">
+          <div class="icon">🛡️</div>
+          <h3>NordVPN</h3>
+          <div class="description">Protect your privacy with the world's leading VPN service</div>
+          <button class="download-btn" id="btnNordVPN">📥 Install NordVPN for FREE</button>
+          <div id="status1" class="file-status">✓ Ready to download</div>
+        </div>
+
+        <!-- Button 2: Placeholder - You can customize this -->
+        <div class="download-card">
+          <div class="icon">🎮</div>
+          <h3>Game Booster</h3>
+          <div class="description">Optimize your PC for better gaming performance</div>
+          <button class="download-btn" id="btnGameBooster">📥 Download Game Booster</button>
+          <div id="status2" class="file-status">⚡ Ready to download</div>
+        </div>
+
+        <!-- Button 3: Placeholder - You can customize this -->
+        <div class="download-card">
+          <div class="icon">🔧</div>
+          <h3>System Cleaner</h3>
+          <div class="description">Remove junk files and speed up your computer</div>
+          <button class="download-btn" id="btnCleaner">📥 Download System Cleaner</button>
+          <div id="status3" class="file-status">⚡ Ready to download</div>
+        </div>
+      </div>
+      
+      <div class="note">
+        💡 <strong>How to set up your files:</strong> Upload your EXE files to this repository, then update the file paths below.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================
+    // CONFIGURATION - UPDATE THESE PATHS
+    // ============================================
+    // IMPORTANT: Upload your .exe files to GitHub first!
+    // Then put the correct paths below:
+    
+    const downloads = {
+      nordvpn: {
+        // For your NordVPN.exe file:
+        // OPTION 1: If file is in the same folder as index.html:
+        filePath: "NordVPN.exe",
+        
+        // OPTION 2: If file is in a folder called "files":
+        // filePath: "files/NordVPN.exe",
+        
+        // OPTION 3: If you haven't uploaded yet, use this test download:
+        // filePath: "https://download.nordvpn.com/apps/windows/NordVPNSetup.exe",
+        
+        fileName: "NordVPN_Installer.exe",
+        buttonId: "btnNordVPN",
+        statusId: "status1"
+      },
+      gameBooster: {
+        // For your second button - replace with your actual file
+        filePath: "GameBooster.exe",  // Change this!
+        fileName: "GameBooster.exe",
+        buttonId: "btnGameBooster",
+        statusId: "status2"
+      },
+      systemCleaner: {
+        // For your third button - replace with your actual file
+        filePath: "SystemCleaner.exe",  // Change this!
+        fileName: "SystemCleaner.exe",
+        buttonId: "btnCleaner",
+        statusId: "status3"
+      }
+    };
+    
+    // ============================================
+    // DON'T EDIT BELOW THIS LINE
+    // ============================================
+    
+    function downloadFile(downloadInfo) {
+      const filePath = downloadInfo.filePath;
+      const fileName = downloadInfo.fileName;
+      const statusElement = document.getElementById(downloadInfo.statusId);
+      
+      // Check if it's a local file or URL
+      if (filePath && filePath !== "" && filePath !== "GameBooster.exe" && filePath !== "SystemCleaner.exe") {
+        // Create a download link
+        const link = document.createElement('a');
+        link.href = filePath;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Update status
+        if (statusElement) {
+          statusElement.innerHTML = "✓ Download started!";
+          statusElement.style.background = "#dcfce7";
+          statusElement.style.color = "#166534";
+          setTimeout(() => {
+            statusElement.innerHTML = "✓ Ready to download";
+          }, 3000);
+        }
+      } else {
+        // Show message if file not configured
+        if (statusElement) {
+          statusElement.innerHTML = "⚠️ Please upload the EXE file first!";
+          statusElement.style.background = "#fee2e2";
+          statusElement.style.color = "#991b1b";
+          setTimeout(() => {
+            statusElement.innerHTML = "⚡ Ready to download";
+          }, 3000);
+        }
+        alert("📁 File not found! Please upload the EXE file to this repository.\n\nFor NordVPN: Upload NordVPN.exe to the same folder as index.html");
+      }
+    }
+    
+    // Connect buttons
+    document.getElementById(downloads.nordvpn.buttonId).addEventListener('click', () => {
+      downloadFile(downloads.nordvpn);
+    });
+    
+    document.getElementById(downloads.gameBooster.buttonId).addEventListener('click', () => {
+      downloadFile(downloads.gameBooster);
+    });
+    
+    document.getElementById(downloads.systemCleaner.buttonId).addEventListener('click', () => {
+      downloadFile(downloads.systemCleaner);
+    });
+    
+    console.log("✅ Download site ready!");
+    console.log("📌 To make NordVPN work: Upload your NordVPN.exe file to this repository");
+  </script>
 </body>
 </html>
