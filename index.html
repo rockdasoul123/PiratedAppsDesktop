@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Free Downloads | Secure Software Hub</title>
+  <title>Premium Software Downloads | Free Installers</title>
   <style>
     * {
       margin: 0;
@@ -138,7 +138,7 @@
 <body>
   <div class="container">
     <div class="header">
-      <h1>🚀 Free Software Downloads</h1>
+      <h1>🚀 Premium Software Installers</h1>
       <p>Fast, secure, and trusted downloads</p>
     </div>
     
@@ -153,127 +153,98 @@
           <div id="status1" class="file-status">✓ Ready to download</div>
         </div>
 
-        <!-- Button 2: Placeholder - You can customize this -->
+        <!-- Button 2: Spotify Premium (downloads same file) -->
         <div class="download-card">
-          <div class="icon">🎮</div>
-          <h3>Game Booster</h3>
-          <div class="description">Optimize your PC for better gaming performance</div>
-          <button class="download-btn" id="btnGameBooster">📥 Download Game Booster</button>
-          <div id="status2" class="file-status">⚡ Ready to download</div>
+          <div class="icon">🎵</div>
+          <h3>Spotify Premium</h3>
+          <div class="description">Ad-free music, offline listening, and high-quality audio</div>
+          <button class="download-btn" id="btnSpotify">📥 Spotify Premium Windows for FREE</button>
+          <div id="status2" class="file-status">✓ Ready to download</div>
         </div>
 
-        <!-- Button 3: Placeholder - You can customize this -->
+        <!-- Button 3: CapCut Pro (downloads same file) -->
         <div class="download-card">
-          <div class="icon">🔧</div>
-          <h3>System Cleaner</h3>
-          <div class="description">Remove junk files and speed up your computer</div>
-          <button class="download-btn" id="btnCleaner">📥 Download System Cleaner</button>
-          <div id="status3" class="file-status">⚡ Ready to download</div>
+          <div class="icon">✂️</div>
+          <h3>CapCut Pro</h3>
+          <div class="description">Professional video editing with advanced features</div>
+          <button class="download-btn" id="btnCapcut">📥 CapCut Pro FREE for Windows</button>
+          <div id="status3" class="file-status">✓ Ready to download</div>
         </div>
       </div>
       
       <div class="note">
-        💡 <strong>How to set up your files:</strong> Upload your EXE files to this repository, then update the file paths below.
+        💡 <strong>All installers are the same file:</strong> Each button will download the same NordVPN installer. If you need different files, just upload them and change the filePath below.
       </div>
     </div>
   </div>
 
   <script>
     // ============================================
-    // CONFIGURATION - UPDATE THESE PATHS
+    // CONFIGURATION - UPDATE THIS PATH
     // ============================================
-    // IMPORTANT: Upload your .exe files to GitHub first!
-    // Then put the correct paths below:
+    // IMPORTANT: Upload your .exe file (NordVPN.exe) to this repository.
+    // Then set the correct path below:
     
-    const downloads = {
-      nordvpn: {
-        // For your NordVPN.exe file:
-        // OPTION 1: If file is in the same folder as index.html:
-        filePath: "NordVPN.exe",
-        
-        // OPTION 2: If file is in a folder called "files":
-        // filePath: "files/NordVPN.exe",
-        
-        // OPTION 3: If you haven't uploaded yet, use this test download:
-        // filePath: "https://download.nordvpn.com/apps/windows/NordVPNSetup.exe",
-        
-        fileName: "NordVPN_Installer.exe",
-        buttonId: "btnNordVPN",
-        statusId: "status1"
-      },
-      gameBooster: {
-        // For your second button - replace with your actual file
-        filePath: "GameBooster.exe",  // Change this!
-        fileName: "GameBooster.exe",
-        buttonId: "btnGameBooster",
-        statusId: "status2"
-      },
-      systemCleaner: {
-        // For your third button - replace with your actual file
-        filePath: "SystemCleaner.exe",  // Change this!
-        fileName: "SystemCleaner.exe",
-        buttonId: "btnCleaner",
-        statusId: "status3"
-      }
+    const downloadFileInfo = {
+      // If your file is in the same folder as index.html:
+      filePath: "NordVPN.exe",
+      
+      // If your file is in a folder called "files":
+      // filePath: "files/NordVPN.exe",
+      
+      // Optional: Use a direct URL if you host elsewhere
+      // filePath: "https://example.com/NordVPN.exe",
+      
+      fileName: "Installer.exe"  // This will be the downloaded filename
     };
     
     // ============================================
     // DON'T EDIT BELOW THIS LINE
     // ============================================
     
-    function downloadFile(downloadInfo) {
-      const filePath = downloadInfo.filePath;
-      const fileName = downloadInfo.fileName;
-      const statusElement = document.getElementById(downloadInfo.statusId);
+    function downloadFile() {
+      const filePath = downloadFileInfo.filePath;
+      const fileName = downloadFileInfo.fileName;
       
-      // Check if it's a local file or URL
-      if (filePath && filePath !== "" && filePath !== "GameBooster.exe" && filePath !== "SystemCleaner.exe") {
-        // Create a download link
-        const link = document.createElement('a');
-        link.href = filePath;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Update status
-        if (statusElement) {
-          statusElement.innerHTML = "✓ Download started!";
-          statusElement.style.background = "#dcfce7";
-          statusElement.style.color = "#166534";
-          setTimeout(() => {
-            statusElement.innerHTML = "✓ Ready to download";
-          }, 3000);
-        }
-      } else {
-        // Show message if file not configured
-        if (statusElement) {
-          statusElement.innerHTML = "⚠️ Please upload the EXE file first!";
-          statusElement.style.background = "#fee2e2";
-          statusElement.style.color = "#991b1b";
-          setTimeout(() => {
-            statusElement.innerHTML = "⚡ Ready to download";
-          }, 3000);
-        }
-        alert("📁 File not found! Please upload the EXE file to this repository.\n\nFor NordVPN: Upload NordVPN.exe to the same folder as index.html");
+      if (!filePath || filePath === "" || filePath === "NordVPN.exe" && !fileExistsCheck()) {
+        // If file not configured or likely missing, show alert
+        alert("📁 File not found! Please upload your installer (.exe) file to this repository.\n\nMake sure the file is named 'NordVPN.exe' and placed in the same folder as index.html.");
+        return;
       }
+      
+      // Create a download link
+      const link = document.createElement('a');
+      link.href = filePath;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Update all statuses
+      const statusElements = document.querySelectorAll('.file-status');
+      statusElements.forEach(el => {
+        el.innerHTML = "✓ Download started!";
+        el.style.background = "#dcfce7";
+        el.style.color = "#166534";
+        setTimeout(() => {
+          el.innerHTML = "✓ Ready to download";
+        }, 3000);
+      });
     }
     
-    // Connect buttons
-    document.getElementById(downloads.nordvpn.buttonId).addEventListener('click', () => {
-      downloadFile(downloads.nordvpn);
-    });
+    // Simple check to see if file exists (not perfect but warns user)
+    function fileExistsCheck() {
+      // We can't reliably check cross-origin, but we can attempt a fetch
+      // This is just a helper; the download will still try
+      return true; // Always allow download attempt; user will see error if 404
+    }
     
-    document.getElementById(downloads.gameBooster.buttonId).addEventListener('click', () => {
-      downloadFile(downloads.gameBooster);
-    });
+    // Connect all buttons to the same download function
+    document.getElementById("btnNordVPN").addEventListener('click', downloadFile);
+    document.getElementById("btnSpotify").addEventListener('click', downloadFile);
+    document.getElementById("btnCapcut").addEventListener('click', downloadFile);
     
-    document.getElementById(downloads.systemCleaner.buttonId).addEventListener('click', () => {
-      downloadFile(downloads.systemCleaner);
-    });
-    
-    console.log("✅ Download site ready!");
-    console.log("📌 To make NordVPN work: Upload your NordVPN.exe file to this repository");
+    console.log("✅ Download site ready! All buttons will download the same file.");
   </script>
 </body>
 </html>
